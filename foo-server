@@ -1,0 +1,134 @@
+#!/bin/sh 
+
+### BEGIN INIT INFO
+# Provides:          foo-server
+# Required-Start:    $local_fs $network $remote_fs $syslog $named
+# Required-Stop:     $local_fs $network $remote_fs $syslog
+# Default-Start:     3 4 5
+# Default-Stop:      0 1 2 6
+# Short-Description: init.d script for the foo server
+# Description:       Foo Server -- An application server Chuck Norris could be proud of
+### END INIT INFO
+
+# Author: Stephanie Sunshine <ponyosunshine@gmail.com> // 2018-11
+
+
+USER=foo
+PID=/var/run/foo-server
+CONF=/etc/foo.conf
+DAEMON=/usr/local/bin/foo-1.2
+SCRIPTNAME="Foo Server"
+NAME='foo-1.2'
+
+do_exit()
+{
+echo "$1"
+exit "$2"
+}
+
+make_pidfile()
+{
+  touch "$PID" || do_exit "Can't create pidfile $PID" 1
+  chown "$USER:root" "$PID"
+  chmod "770" "$PID"
+}
+
+# Verify we are root
+[ $(id -u ) != 0 ] && do_exit "Must run script as root" 1
+
+# Verify sudo exists
+SUDO=`which sudo`
+test -x "$SUDO" || do_exit "Sudo is not accessable or executable" 1
+
+# Verify server exists and is executable
+"$SUDO" -u "$USER" test -x "$DAEMON" || do_exit "Daemon $DAEMON is not accessable or executable" 1
+
+# Verify conf file exists and is accessable
+"$SUDO" -u "$USER" test -e "$CONF" || do_exit "Configuration file at $CONF is not accessable" 1
+
+# Verify pid file exists and is accessable, create if possible
+"$SUDO" -u "$USER" test -e "$PID" || make_pidfile
+
+# Start the init process
+. /lib/lsb/init-functions
+
+do_start()
+{
+  # test to see if the daemon is already running, return 1 if it is
+  start-stop-daemon --start --quiet --chuid "$USER" --pidfile "$PID" --exec "$DAEMON" --test > /dev/null || return 1
+
+  # try to start the daemon, return 2 if the daemon could not start
+  start-stop-daemon --start --quiet --chuid "$USER" --pidfile "$PID" --exec "$DAEMON" -- "--config $CONF" || return 2
+}
+
+do_stop()
+{
+  # this doesn't clean up any orphaned children if the daemon doesn't shutdown right
+  start-stop-daemon --stop --quiet --user "$USER" --retry=TERM/30/KILL/5 --pid `cat $PID`
+}
+
+# "Main Switch"
+case "$1" in
+  start)
+    # log, run, parse return code
+    log_daemon_msg "Starting $NAME"
+    do_start
+    case "$?" in
+      0)
+        log_success_msg "$NAME Started"
+	log_end_msg 0
+        ;;
+      1)
+        log_warning_msg "$NAME Already started"
+	log_end_msg 0
+        ;;
+      2)
+        log_failure_msg "$NAME Could not be started"
+	log_end_msg 1
+	exit 1
+        ;;
+      *)
+        log_failure_msg "$NAME Start failed: $?"
+	log_end_msg 1
+	exit 2
+      esac
+    ;;
+  stop)
+    # log, run, parse return code, wipe pid file if successful
+    log_daemon_msg "Stopping $NAME ($PID)"
+    do_stop
+    case "$?" in
+      0)
+        log_success_msg "$NAME Stopped"
+	log_end_msg 0
+        ;;
+      1)
+        log_warning_msg "$NAME Not running"
+	log_end_msg 0
+        ;;
+      2)
+        log_failure_msg "$NAME Could not be stopped"
+	log_end_msg 1
+	exit 1
+        ;;
+      *)
+        log_failure_msg "$NAME Stop failed: $?"
+	log_end_msg 1
+	exit 2
+        ;;
+    esac
+    rm -rf "$PID"
+    ;;
+  status)
+    # lsb builtin
+    status_of_proc -p "$PID" "$DAEMON" "$NAME"
+    ;;
+  restart)
+    do_stop
+    do_start
+    ;;
+  *)
+    echo "Usage: $SCRIPTNAME {start|stop|status|restart}" >&2
+    exit 3
+    ;;
+esac
