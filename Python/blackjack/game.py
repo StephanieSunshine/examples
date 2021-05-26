@@ -1,42 +1,65 @@
-#!/usr/bin/env python3
+# game.py -- Blackjack in a class
 
 import random
 import sys
 from time import sleep
+from card import Card
 
-class Card:
-    cardName = {
-        "Ace": 1,
-        "Two": 2,
-        "Three": 3,
-        "Four": 4,
-        "Five": 5,
-        "Six": 6,
-        "Seven": 7,
-        "Eight": 8,
-        "Nine": 9,
-        "Ten": 10,
-        "Jack": 10,
-        "Queen": 10,
-        "King": 10
-    }
+# for pytest
+class TestClass:
+    def test_one(self):
+        # test if we can make a game instance
+        g = Game()
+        assert str(g.__class__) == "<class 'game.Game'>"
 
-    cardSuit = [ "clubs", "hearts", "spades", "diamonds" ]
+    def test_two(self):
+        # can we build a deck
+        g = Game()
+        g.buildDeck()
+        print("testing Game.buildDeck works\n")
+        assert len(g.deck) == 52
 
-    # constructor
-    def __init__(self, name, suit):
-        self.name = name
-        self.suit = suit
+    def test_three(self):
+        # testing if shuffle works
+        g = Game()
+        g.buildDeck()
+        od = list(g.deck)
+        g.shuffle(6)
+        print("testing if Game.shuffle works\n")
+        assert od != g.deck
 
-    # string value of card instance
-    def __str__(self):
-        # return human readable string of card
-        return self.name + " of " + self.suit
+    def test_four(self):
+        # does our blackjack test work for human
+        g = Game()
+        g.hands["human"].append(Card("Ace", "hearts"))
+        g.hands["human"].append(Card("Jack", "hearts"))
+        g.hands["computer"].append(Card("Two", "hearts"))
+        g.hands["computer"].append(Card("Jack", "spades"))
+        g.playHuman()
+        print("testing if blackjack works for a human\n")
+        assert g.scores["human"] == 1
 
-    # integer value of card instance
-    def __call__(self):
-        # return value of card
-        return self.cardName[self.name]
+    def test_five(self):
+        # does our blackjack test work for computer 
+        g = Game()
+        g.hands["computer"].append(Card("Ace", "hearts"))
+        g.hands["computer"].append(Card("Jack", "hearts"))
+        g.hands["human"].append(Card("Two", "hearts"))
+        g.hands["human"].append(Card("Jack", "spades"))
+        g.playHuman()
+        print("testing if blackjack works for a computer\n")
+        assert g.scores["computer"] == 1
+
+    def test_six(self):
+        # does our blackjack test work for human and computer
+        g = Game()
+        g.hands["computer"].append(Card("Ace", "hearts"))
+        g.hands["computer"].append(Card("Jack", "hearts"))
+        g.hands["human"].append(Card("Ace", "spades"))
+        g.hands["human"].append(Card("Jack", "spades"))
+        g.playHuman()
+        print("testing if blackjack works for both\n")
+        assert g.scores["computer"] == 0 and g.scores["human"] == 0
 
 class Game:
     endTime = 1 # seconds
@@ -244,5 +267,3 @@ class Game:
                 print("Computer stands\n")
                 return(False)
  
-# main
-Game().begin()
